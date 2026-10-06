@@ -1,0 +1,37 @@
+﻿
+True stars: 5   Detected: 5
+
+Star                  true (x, y)        detected (x, y)   error px
+Betelgeuse   (  992.0,  877.2)   ( 991.97, 877.23)      0.016
+Bellatrix    (  486.8,  982.3)   ( 486.82, 982.23)      0.070
+Alnilam      (  487.5,  434.1)   ( 487.46, 434.11)      0.023
+Alnitak      (  542.8,  360.4)   ( 542.74, 360.34)      0.046
+Mintaka      (  441.4,  516.1)   ( 441.36, 516.06)      0.049
+
+RMS centroid error: 0.045 px  (~2.4 arcsec)
+Saved detected_stars.png
+
+True stars: 5   Detected: 5
+
+Star                  true (x, y)        detected (x, y)   error px
+Betelgeuse   (  992.0,  877.2)   ( 992.00, 877.23)      0.050
+Bellatrix    (  486.8,  982.3)   ( 486.94, 982.04)      0.289
+Alnilam      (  487.5,  434.1)   ( 487.55, 434.05)      0.085
+Alnitak      (  542.8,  360.4)   ( 542.75, 360.18)      0.190
+Mintaka      (  441.4,  516.1)   ( 441.84, 515.99)      0.456
+
+RMS centroid error: 0.260 px  (~13.7 arcsec)
+Saved detected_stars.png
+
+True stars: 5   Detected: 226
+
+Star                  true (x, y)        detected (x, y)   error px
+Betelgeuse   (  992.0,  877.2)   ( 992.12, 877.17)      0.174
+Bellatrix    (  486.8,  982.3)   ( 487.02, 981.51)      0.800
+Alnilam      (  487.5,  434.1)   ( 487.87, 434.15)      0.399
+Alnitak      (  542.8,  360.4)   ( 542.11, 359.67)      0.963
+Mintaka      (  441.4,  516.1)   ( 442.07, 516.18)      0.680
+
+RMS centroid error: 0.666 px  (~35.1 arcsec)
+Saved detected_stars.png
+
