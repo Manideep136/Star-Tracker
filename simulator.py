@@ -3,6 +3,9 @@
 Run:  python simulator.py
 Output: sim_star_field.png (+ printed true attitude)
 """
+import csv
+import os
+
 import numpy as np
 import cv2
 
@@ -11,8 +14,10 @@ IMG_SIZE = 1024            # pixels (square sensor)
 FOV_DEG = 15.0             # full field of view, degrees
 LIMIT_MAG = 6.0            # faintest star we render
 SIGMA_PX = 1.4             # star blur (PSF width) in pixels
-NOISE_STD = 3.0             # sensor read noise (8-bit counts)
+NOISE_STD =20.0            # sensor read noise (8-bit counts)
 BACKGROUND = 8.0           # sky + dark level (8-bit counts)
+REF_MAG = 6.0              # a star of this magnitude...
+PEAK_AT_REF_MAG = 40.0     # ...peaks at this brightness (8-bit counts)
 
 # Pinhole focal length in pixels from field of view
 FOCAL_PX = (IMG_SIZE / 2) / np.tan(np.radians(FOV_DEG / 2))
@@ -20,7 +25,7 @@ FOCAL_PX = (IMG_SIZE / 2) / np.tan(np.radians(FOV_DEG / 2))
 # --- Small built-in catalog: (name, RA deg, Dec deg, magnitude) ------------
 # Approximate J2000 positions for bright stars so the script runs offline.
 # Replace with Hipparcos (astroquery) for a realistic star density.
-CATALOG = [
+BUILTIN_CATALOG = [
     ("Sirius", 101.287, -16.716, -1.46), ("Canopus", 95.988, -52.696, -0.74),
     ("Arcturus", 213.915, 19.182, -0.05), ("Vega", 279.234, 38.784, 0.03),
     ("Capella", 79.172, 45.998, 0.08), ("Rigel", 78.634, -8.202, 0.13),
@@ -60,6 +65,27 @@ CATALOG = [
     ("Gacrux", 187.791, -57.113, 1.64), ("Miaplacidus", 138.300, -69.717, 1.68),
     ("Avior", 125.629, -59.510, 1.86), ("Atria", 252.166, -69.028, 1.92),
 ]
+
+
+def load_catalog(path=None):
+    """Load catalog.csv (made by get_catalog.py), else fall back to the built-in list.
+
+    Returns (list of (name, ra_deg, dec_deg, mag), description of the source).
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = path or os.environ.get("STAR_CATALOG") or os.path.join(here, "catalog.csv")
+    if os.path.exists(path):
+        stars = []
+        with open(path, newline="") as f:
+            for row in csv.DictReader(f):
+                stars.append((f"HIP{row['hip']}", float(row["ra_deg"]),
+                              float(row["dec_deg"]), float(row["mag"])))
+        if stars:
+            return stars, os.path.basename(path)
+    return BUILTIN_CATALOG, "built-in 75-star list; run get_catalog.py for the real catalog"
+
+
+CATALOG, CATALOG_SOURCE = load_catalog()
 
 
 def radec_to_unit(ra_deg, dec_deg):
@@ -109,8 +135,9 @@ def rotation_to_quaternion(R):
     return q / np.linalg.norm(q)
 
 
-def project_stars(R, catalog=CATALOG, limit_mag=LIMIT_MAG):
+def project_stars(R, catalog=None, limit_mag=LIMIT_MAG):
     """Return list of (px, py, magnitude, name) for stars visible in the image."""
+    catalog = CATALOG if catalog is None else catalog
     visible = []
     half = IMG_SIZE / 2
     for name, ra, dec, mag in catalog:
@@ -132,8 +159,9 @@ def render_image(stars, rng=None):
     img = np.full((IMG_SIZE, IMG_SIZE), BACKGROUND, dtype=np.float64)
     yy, xx = np.mgrid[0:IMG_SIZE, 0:IMG_SIZE]
     for px, py, mag, _ in stars:
-        # brightness: ~2.512x per magnitude; mag 0 saturates, mag 6 is faint
-        peak = 255.0 * 2.512 ** (-(mag - 1.0))
+        # brightness: 2.512x per magnitude, anchored so a REF_MAG star peaks at
+        # PEAK_AT_REF_MAG counts. Bright stars saturate at 255, like a real sensor.
+        peak = PEAK_AT_REF_MAG * 2.512 ** (REF_MAG - mag)
         r = int(4 * SIGMA_PX) + 1
         x0, x1 = max(0, int(px) - r), min(IMG_SIZE, int(px) + r + 1)
         y0, y1 = max(0, int(py) - r), min(IMG_SIZE, int(py) + r + 1)
@@ -155,6 +183,7 @@ def main():
     cv2.imwrite("sim_star_field.png", img)
 
     print(f"Focal length: {FOCAL_PX:.1f} px, FOV: {FOV_DEG} deg")
+    print(f"Catalog: {len(CATALOG)} stars ({CATALOG_SOURCE})")
     print(f"True pointing: RA={ra} deg, Dec={dec} deg, roll={roll} deg")
     print(f"True quaternion [w x y z]: {np.round(q, 5)}")
     print(f"Stars visible: {len(stars)}")
