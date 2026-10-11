@@ -5,9 +5,11 @@
 
 ## Status
 - [x] Star-field simulator (`simulator.py`)
-- [ ] Star detection + sub-pixel centroiding
-- [ ] Star identification (triangle / pyramid matching)
-- [ ] Attitude solve (QUEST)
+- [x] Star detection + sub-pixel centroiding (`detect.py`)
+- [x] Real Hipparcos catalog (`get_catalog.py` -> `catalog.csv`)
+- [x] Star identification by angle voting (`identify.py`)
+- [x] Attitude solve, SVD method (`attitude.py`); QUEST still to do
+- [x] End-to-end test over random sky pointings (`run_pipeline.py`)
 - [ ] Real night-sky test
 - [ ] Embedded port (Raspberry Pi / FPGA)
 
@@ -16,9 +18,13 @@
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python simulator.py
+python get_catalog.py        # once, needs internet: writes catalog.csv
+python simulator.py          # writes sim_star_field.png
+python detect.py             # detection self-test
+python run_pipeline.py 100   # full test over 100 random pointings
 ```
-This writes `sim_star_field.png` and prints the true attitude used.
+Without `catalog.csv` the code falls back to a tiny built-in 75-star list,
+which is too sparse for identification.
 
 ## How the simulator works
 1. Loads a bright-star catalog (a small built-in set, so it runs offline; swap in Hipparcos later).
