@@ -1,16 +1,18 @@
 """Stress test: how much noise / how few stars can the star tracker take?
 
-Run:  python sweep.py          (50 trials per setting, about 1-3 minutes)
-      python sweep.py 100      (100 trials per setting, slower but smoother)
+Run:  python sweep.py                    (improved detector, 50 trials per setting)
+      python sweep.py 100                (100 trials per setting, slower but smoother)
+      python sweep.py 50 basic           (the original detector, for before/after)
+      python sweep.py 50 improved        (the improved detector, same as the default)
 
 Two sweeps, using the SAME random sky pointings for every setting so the
 comparison is fair:
   1. Sensor noise 3 -> 30 counts       (faintest star kept at magnitude 6)
   2. Faintest star 6.0 -> 4.0          (noise kept at 3)
 
-Writes:
-  sweep_results.csv   the full table (open it in Excel)
-  sweep_results.png   a plot you can put in your application
+Writes (NAME is basic or improved):
+  sweep_results_NAME.csv   the full table (open it in Excel)
+  sweep_results_NAME.png   a plot you can put in your application
 """
 import csv
 import sys
@@ -28,6 +30,8 @@ NOISE_LEVELS = [3, 6, 10, 15, 20, 30]           # sensor noise, 8-bit counts
 LIMIT_MAGS = [6.0, 5.5, 5.0, 4.5, 4.0]          # faintest star the camera sees
 BASE_NOISE = 3.0
 BASE_MAG = 6.0
+DETECTOR = detect.detect_stars                    # main() switches this with the 2nd argument
+DETECTOR_NAME = "improved"
 
 
 def run_case(noise, limit_mag, n_trials, seed=42):
@@ -43,7 +47,7 @@ def run_case(noise, limit_mag, n_trials, seed=42):
         R_true = sim.attitude_matrix(ra, dec, roll)
         truth = sim.project_stars(R_true, limit_mag=limit_mag)
         img = sim.render_image(truth, rng)
-        det = detect.detect_stars(img)
+        det = DETECTOR(img)
         true_n.append(len(truth))
         det_n.append(len(det))
 
@@ -139,7 +143,7 @@ def make_plot(noise_rows, mag_rows, path):
             bot.annotate("Pointing", (px[-1], pp[-1]), xytext=(6, 0), textcoords="offset points",
                          color=INK, fontsize=9, va="center")
         bot.margins(x=0.12)
-    fig.suptitle("Star tracker simulation: where does it break?", color=INK,
+    fig.suptitle(f"Star tracker simulation: where does it break? ({DETECTOR_NAME} detector)", color=INK,
                  fontsize=13, x=0.06, ha="left")
     fig.text(0.06, 0.005, "Simulated images only. Errors are for the correct solutions; "
              "the top row shows how often the answer was correct.",
@@ -150,8 +154,17 @@ def make_plot(noise_rows, mag_rows, path):
 
 
 def main():
+    global DETECTOR, DETECTOR_NAME
     n_trials = int(sys.argv[1]) if len(sys.argv) > 1 else 50
+    DETECTOR_NAME = sys.argv[2] if len(sys.argv) > 2 else "improved"
+    if DETECTOR_NAME == "basic":
+        DETECTOR = detect.detect_stars_basic
+    elif DETECTOR_NAME == "improved":
+        DETECTOR = detect.detect_stars
+    else:
+        sys.exit("Second argument must be basic or improved")
     print(f"Catalog: {len(sim.CATALOG)} stars ({sim.CATALOG_SOURCE})")
+    print(f"Detector: {DETECTOR_NAME}")
     print(f"{n_trials} random pointings per setting, same pointings every time.")
     t0 = time.time()
 
@@ -176,12 +189,14 @@ def main():
 
     cols = ["sweep", "value", "trials", "correct", "wrong", "no_answer", "pct_correct",
             "true_stars", "detected", "pointing_rms", "roll_rms"]
-    with open("sweep_results.csv", "w", newline="") as f:
+    csv_name = f"sweep_results_{DETECTOR_NAME}.csv"
+    png_name = f"sweep_results_{DETECTOR_NAME}.png"
+    with open(csv_name, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         w.writeheader()
         w.writerows(noise_rows + mag_rows)
-    make_plot(noise_rows, mag_rows, "sweep_results.png")
-    print(f"\nSaved sweep_results.csv and sweep_results.png  ({time.time() - t0:.0f}s)")
+    make_plot(noise_rows, mag_rows, png_name)
+    print(f"\nSaved {csv_name} and {png_name}  ({time.time() - t0:.0f}s)")
 
 
 if __name__ == "__main__":
