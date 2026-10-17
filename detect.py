@@ -45,13 +45,15 @@ def estimate_background(img):
 
 
 def detect_stars(img, k_sigma=5.0, min_pixels=4, max_pixels=600, psf_sigma=None,
-                 reject_blends=True, blend_ratio=1.2, info=None):
+                 reject_blends=True, blend_ratio=1.2, info=None, saturation_level=250):
     """Find stars in a grayscale image (improved detector).
 
     img          2-D image, any numeric type
     k_sigma      detection threshold, in noise sigmas of the filtered image
+    min_pixels / max_pixels  smallest / largest accepted blob (pixels, after filtering)
     psf_sigma    star blur in pixels (default: the simulator's value)
     reject_blends  drop blobs that look like two or more merged stars
+    saturation_level  pixel value treated as saturated (these skip the blend test)
     info         optional dict; filled with 'noise' and 'blends' (count rejected)
 
     Returns a list of (x, y, flux), brightest first.
@@ -115,7 +117,7 @@ def detect_stars(img, k_sigma=5.0, min_pixels=4, max_pixels=600, psf_sigma=None,
             continue
 
         # blend test: is this blob wider than one star's blur?
-        saturated = img[ya:yb, xa:xb].max() >= 250
+        saturated = img[ya:yb, xa:xb].max() >= saturation_level
         r4 = float((((xs - cx) ** 2 + (ys - cy) ** 2) ** 2).sum())
         moment_noise = sigma * np.sqrt(r4) / flux  # how much noise shakes the width
         if reject_blends and moment_noise < 0.2 * psf_sigma ** 2 and not saturated:
@@ -191,15 +193,39 @@ def match_to_truth(detected, truth, max_dist=3.0):
 
 def main():
     if len(sys.argv) > 1:
-        img = cv2.imread(sys.argv[1], cv2.IMREAD_GRAYSCALE)
-        if img is None:
-            sys.exit("Could not read image: " + sys.argv[1])
+        # python detect.py photo.jpg [star_blur_px] [threshold_sigma]
+        # Real photos differ from the simulator: stars are wider and often stretched or
+        # colour-fringed by the lens, and the brightest stars have big glowing halos.
+        # So image mode uses a wider blur, skips the blend test (a stretched star would
+        # look like a blend) and accepts large blobs.
+        path = sys.argv[1]
+        psf = float(sys.argv[2]) if len(sys.argv) > 2 else 2.0
+        k_sigma = float(sys.argv[3]) if len(sys.argv) > 3 else 5.0
+        color = cv2.imread(path, cv2.IMREAD_COLOR)
+        if color is None:
+            sys.exit("Could not read image: " + path)
+        # Average the colour channels so blue and red stars count equally.
+        img = color.astype(np.float32).mean(axis=2)
         info = {}
-        stars = detect_stars(img, info=info)
+        stars = detect_stars(img, k_sigma=k_sigma, psf_sigma=psf, reject_blends=False,
+                             max_pixels=3000, info=info)
         print("Detected %d stars in %s (noise estimate %.1f, blends rejected %d)"
-              % (len(stars), sys.argv[1], info["noise"], info["blends"]))
+              % (len(stars), path, info["noise"], info["blends"]))
         for x, y, f in stars:
             print("  x=%8.2f  y=%8.2f  flux=%9.1f" % (x, y, f))
+
+        # Mark every detection on the image and save it next to the original.
+        radius = max(8, int(round(4 * psf)))
+        for rank, (x, y, f) in enumerate(stars):
+            centre = (int(round(x)), int(round(y)))
+            cv2.circle(color, centre, radius, (0, 255, 0), 1)
+            if rank < 15:                          # number the 15 brightest
+                cv2.putText(color, str(rank + 1), (centre[0] + radius + 2, centre[1] - 2),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1, cv2.LINE_AA)
+        stem = path.rsplit(".", 1)[0]
+        out = stem + "_detected.png"
+        cv2.imwrite(out, color)
+        print("Saved " + out + " (green circles = detected stars, yellow numbers = 15 brightest)")
         return
 
     # Self-test on a simulated image with known truth

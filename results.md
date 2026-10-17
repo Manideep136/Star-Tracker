@@ -15,3 +15,9 @@ Improved detector: clipping-proof noise estimate, matched filter, windowed centr
 - New detector: noise estimate 20.8 against a true 20.0.
 - Zero misidentifications in all runs. Star-count sweep unchanged (identifier limit: needs at least 4 stars).
 - Simulated images only.
+
+## First real-image test: Pleiades photo (1024 x 768, JPEG)
+- Detector found 93 stars; the brightest star in the cluster centre is detected after raising the blob size limit.
+- Real stars are stretched into comet shapes with colour fringes (lens aberration). The simulator's blend test rejected 38 of them, so photo mode skips it.
+- Photo mode: colour channels averaged, star blur 2.0 px, blob limit 3000 px.
+- Not yet done: star identification (needs the field of view).
