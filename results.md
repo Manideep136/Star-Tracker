@@ -21,3 +21,8 @@ Improved detector: clipping-proof noise estimate, matched filter, windowed centr
 - Real stars are stretched into comet shapes with colour fringes (lens aberration). The simulator's blend test rejected 38 of them, so photo mode skips it.
 - Photo mode: colour channels averaged, star blur 2.0 px, blob limit 3000 px.
 - Not yet done: star identification (needs the field of view).
+
+## Real-image test (DSS2 Red, Pleiades, 10 deg, 1024 px)
+- Solved with solve_image.py: 15/28 detections matched to Hipparcos stars
+- Centre error 21.7 arcsec (0.62 px); star residual RMS 0.21 px (7.3 arcsec)
+- First end-to-end solve on a real sky image, not a simulation
