@@ -26,3 +26,8 @@ Improved detector: clipping-proof noise estimate, matched filter, windowed centr
 - Solved with solve_image.py: 15/28 detections matched to Hipparcos stars
 - Centre error 21.7 arcsec (0.62 px); star residual RMS 0.21 px (7.3 arcsec)
 - First end-to-end solve on a real sky image, not a simulation
+
+## Second real field: Orion belt (DSS2 Red, 10 deg, 1024 px)
+- Solved with solve_image.py after adding a robust matcher (identify_ransac) to identify.py
+- 6 stars matched; centre error 25.4 arcsec (0.72 px); star residual RMS 0.50 px
+- Two different real fields now solve: Pleiades (21.7 arcsec) and Orion (25.4 arcsec)

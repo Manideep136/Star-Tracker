@@ -119,17 +119,38 @@ def main():
 
     # --- identify + solve (try a few star counts, keep the best) --------------
     best, best_n = None, 0
-    tries = [a.top] if a.top else [15, 25, 40]
+    tries = [a.top] if a.top else [12, 15, 20, 25, 30]
     for n in tries:
-        sub = xy_all[:n]
-        for tol_px, match_px in ((1.5, 3.0), (2.5, 4.0)):
-            res = identify.identify_stars(db, sub, tol_px=tol_px, min_votes=3, max_stars=12,
-                                          match_px=match_px, min_fraction=0.3)
+        for tol_px, score_px in ((1.5, 3.0), (2.5, 4.5)):
+            res = identify.identify_ransac(db, xy_all, tol_px=tol_px, score_px=score_px,
+                                           match_px=score_px, max_stars=n)
             if res and res["n_matched"] > best_n:
                 best, best_n, best_try = res, res["n_matched"], (n, tol_px)
+        if best_n >= 6:                                # confident: no need to try more
+            break
+    if best is None:                                   # fall back to the plain voting matcher
+        for n in tries:
+            sub = xy_all[:n]
+            res = identify.identify_stars(db, sub, tol_px=1.5, min_votes=3, max_stars=12,
+                                          match_px=3.0, min_fraction=0.3)
+            if res and res["n_matched"] > best_n:
+                best, best_n, best_try = res, res["n_matched"], (n, 1.5)
     if best is None or best_n < 5:
         print("\nNo trustworthy solution. Things to try: --k 4, --psf 2.5, --top 30, "
               "or check --fov.")
+        vis = cv2.cvtColor(cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8),
+                           cv2.COLOR_GRAY2BGR)
+        print("\nBrightest detections (rank, x, y, brightness):")
+        for i, (x, y, f) in enumerate(stars[:20]):
+            print("  %2d  x=%7.1f  y=%7.1f  flux=%10.0f" % (i + 1, x, y, f))
+        for i, (x, y, f) in enumerate(stars[:40]):
+            cv2.circle(vis, (int(round(x)), int(round(y))), 11, (0, 200, 0), 1)
+            if i < 20:
+                cv2.putText(vis, str(i + 1), (int(x) + 13, int(y) - 4),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1, cv2.LINE_AA)
+        out = a.path.rsplit(".", 1)[0] + "_debug.png"
+        cv2.imwrite(out, vis)
+        print("Saved %s (numbers = brightness rank)" % out)
         return
 
     R = best["R"]
